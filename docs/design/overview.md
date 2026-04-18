@@ -95,4 +95,4 @@ A future `--on-error` flag will make this configurable (see [extended-modes.md](
 
 - Raspberry Pi (primary): ARM64 (Pi 4/5), ARMv7 (Pi 2/3 32-bit)
 - Linux x86_64 (secondary, for testing and non-Pi setups)
-- Moonraker assumed to be running on `localhost:7125` by default (configurable via `--url` / `LAYERLOCK_URL`)
+- Moonraker assumed to be running on `localhost:7125` by default (configurable via `--url` / `MOONRAKER_URL`)

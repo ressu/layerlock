@@ -13,7 +13,7 @@ const defaultURL = "http://localhost:7125"
 const defaultTimeout = 5 * time.Second
 
 func main() {
-	url := flag.String("url", envOr("LAYERLOCK_URL", defaultURL), "Moonraker base URL")
+	url := flag.String("url", envOr("MOONRAKER_URL", defaultURL), "Moonraker base URL")
 	timeout := flag.Duration("timeout", defaultTimeout, "HTTP request timeout")
 	verbose := flag.Bool("verbose", false, "Write status to stderr")
 	flag.BoolVar(verbose, "v", false, "Write status to stderr (shorthand)")
