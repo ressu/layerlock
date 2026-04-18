@@ -118,11 +118,11 @@ func TestEnvVar_URL(t *testing.T) {
 	defer srv.Close()
 
 	cmd := exec.Command(binaryPath)
-	cmd.Env = append(os.Environ(), "LAYERLOCK_URL="+srv.URL)
+	cmd.Env = append(os.Environ(), "MOONRAKER_URL="+srv.URL)
 	err := cmd.Run()
 	if exitErr, ok := err.(*exec.ExitError); ok {
 		if exitErr.ExitCode() != 1 {
-			t.Errorf("LAYERLOCK_URL: got exit %d, want 1", exitErr.ExitCode())
+			t.Errorf("MOONRAKER_URL: got exit %d, want 1", exitErr.ExitCode())
 		}
 		return
 	}
