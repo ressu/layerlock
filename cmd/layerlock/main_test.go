@@ -1,6 +1,7 @@
 package main_test
 
 import (
+	"bytes"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -162,6 +163,61 @@ func TestFailOpen_DoesNotAffectPaused(t *testing.T) {
 	defer srv.Close()
 	if got := runLayerlockArgs(t, "--url", srv.URL, "--fail-open"); got != 2 {
 		t.Errorf("paused --fail-open: got exit %d, want 2", got)
+	}
+}
+
+func runLayerlockStderr(t *testing.T, args ...string) (int, string) {
+	t.Helper()
+	cmd := exec.Command(binaryPath, args...)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	err := cmd.Run()
+	code := 0
+	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			code = exitErr.ExitCode()
+		} else {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	}
+	return code, stderr.String()
+}
+
+func TestStderr_ErrorAlwaysShown(t *testing.T) {
+	code, stderr := runLayerlockStderr(t, "--url", "http://127.0.0.1:19998")
+	if code != 255 {
+		t.Errorf("want exit 255, got %d", code)
+	}
+	if stderr == "" {
+		t.Error("want error message on stderr, got none")
+	}
+}
+
+func TestStderr_FailOpenWarningAlwaysShown(t *testing.T) {
+	code, stderr := runLayerlockStderr(t, "--url", "http://127.0.0.1:19998", "--fail-open")
+	if code != 0 {
+		t.Errorf("want exit 0, got %d", code)
+	}
+	if stderr == "" {
+		t.Error("want warning message on stderr, got none")
+	}
+}
+
+func TestStderr_PrintingSilentWithoutVerbose(t *testing.T) {
+	srv := moonrakerServer("printing")
+	defer srv.Close()
+	_, stderr := runLayerlockStderr(t, "--url", srv.URL)
+	if stderr != "" {
+		t.Errorf("want no stderr without --verbose, got %q", stderr)
+	}
+}
+
+func TestStderr_PrintingVisibleWithVerbose(t *testing.T) {
+	srv := moonrakerServer("printing")
+	defer srv.Close()
+	_, stderr := runLayerlockStderr(t, "--url", srv.URL, "--verbose")
+	if stderr == "" {
+		t.Error("want state message on stderr with --verbose, got none")
 	}
 }
 
