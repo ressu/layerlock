@@ -1,0 +1,33 @@
+# .goreleaser.yaml
+version: 2
+
+builds:
+  - id: layerlock
+    main: ./cmd/layerlock
+    binary: layerlock
+    env:
+      - CGO_ENABLED=0
+    ldflags:
+      - -s -w
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+      - arm
+    goarm:
+      - "7"
+
+archives:
+  - id: layerlock
+    builds: [layerlock]
+    format: binary
+    name_template: "layerlock_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
+
+checksum:
+  name_template: "layerlock_checksums.txt"
+  algorithm: sha256
+
+release:
+  draft: false
+  prerelease: auto
