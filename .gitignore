@@ -1,0 +1,4 @@
+.worktrees/
+dist/
+layerlock
+layerlock_linux_*
