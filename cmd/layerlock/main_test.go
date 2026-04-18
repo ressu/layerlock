@@ -113,6 +113,58 @@ func TestExitCode_Unreachable(t *testing.T) {
 	}
 }
 
+func runLayerlockArgs(t *testing.T, args ...string) int {
+	t.Helper()
+	cmd := exec.Command(binaryPath, args...)
+	err := cmd.Run()
+	if err == nil {
+		return 0
+	}
+	if exitErr, ok := err.(*exec.ExitError); ok {
+		return exitErr.ExitCode()
+	}
+	t.Fatalf("unexpected error running binary: %v", err)
+	return -1
+}
+
+func TestFailOpen_Unreachable(t *testing.T) {
+	if got := runLayerlockArgs(t, "--url", "http://127.0.0.1:19998", "--fail-open"); got != 0 {
+		t.Errorf("unreachable --fail-open: got exit %d, want 0", got)
+	}
+}
+
+func TestFailOpen_UnknownState(t *testing.T) {
+	srv := moonrakerServer("some_new_state")
+	defer srv.Close()
+	if got := runLayerlockArgs(t, "--url", srv.URL, "--fail-open"); got != 0 {
+		t.Errorf("unknown state --fail-open: got exit %d, want 0", got)
+	}
+}
+
+func TestFailOpen_ErrorState(t *testing.T) {
+	srv := moonrakerServer("error")
+	defer srv.Close()
+	if got := runLayerlockArgs(t, "--url", srv.URL, "--fail-open"); got != 0 {
+		t.Errorf("error state --fail-open: got exit %d, want 0", got)
+	}
+}
+
+func TestFailOpen_DoesNotAffectPrinting(t *testing.T) {
+	srv := moonrakerServer("printing")
+	defer srv.Close()
+	if got := runLayerlockArgs(t, "--url", srv.URL, "--fail-open"); got != 1 {
+		t.Errorf("printing --fail-open: got exit %d, want 1", got)
+	}
+}
+
+func TestFailOpen_DoesNotAffectPaused(t *testing.T) {
+	srv := moonrakerServer("paused")
+	defer srv.Close()
+	if got := runLayerlockArgs(t, "--url", srv.URL, "--fail-open"); got != 2 {
+		t.Errorf("paused --fail-open: got exit %d, want 2", got)
+	}
+}
+
 func TestEnvVar_URL(t *testing.T) {
 	srv := moonrakerServer("printing")
 	defer srv.Close()
