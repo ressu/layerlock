@@ -30,14 +30,19 @@ func main() {
 	}
 
 	switch state {
-	case moonraker.StatePrinting, moonraker.StatePaused:
+	case moonraker.StatePrinting:
 		if *verbose {
-			fmt.Fprintf(os.Stderr, "layerlock: printer is %s — blocking\n", state)
+			fmt.Fprintf(os.Stderr, "layerlock: printer state: %s — blocking\n", state)
 		}
 		os.Exit(1)
+	case moonraker.StatePaused:
+		if *verbose {
+			fmt.Fprintf(os.Stderr, "layerlock: printer state: %s — blocking\n", state)
+		}
+		os.Exit(2)
 	default:
 		if *verbose {
-			fmt.Fprintf(os.Stderr, "layerlock: printer is %s — allowing\n", state)
+			fmt.Fprintf(os.Stderr, "layerlock: printer state: %s — allowing\n", state)
 		}
 		os.Exit(0)
 	}

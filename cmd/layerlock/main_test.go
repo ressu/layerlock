@@ -69,8 +69,8 @@ func TestExitCode_Printing(t *testing.T) {
 func TestExitCode_Paused(t *testing.T) {
 	srv := moonrakerServer("paused")
 	defer srv.Close()
-	if got := runLayerlock(t, srv.URL); got != 1 {
-		t.Errorf("paused: got exit %d, want 1", got)
+	if got := runLayerlock(t, srv.URL); got != 2 {
+		t.Errorf("paused: got exit %d, want 2", got)
 	}
 }
 
