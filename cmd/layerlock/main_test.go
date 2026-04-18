@@ -93,23 +93,23 @@ func TestExitCode_Complete(t *testing.T) {
 func TestExitCode_Error(t *testing.T) {
 	srv := moonrakerServer("error")
 	defer srv.Close()
-	if got := runLayerlock(t, srv.URL); got != 0 {
-		t.Errorf("error state: got exit %d, want 0", got)
+	if got := runLayerlock(t, srv.URL); got != 255 {
+		t.Errorf("error state: got exit %d, want 255", got)
 	}
 }
 
 func TestExitCode_UnknownState(t *testing.T) {
 	srv := moonrakerServer("some_new_state")
 	defer srv.Close()
-	if got := runLayerlock(t, srv.URL); got != 0 {
-		t.Errorf("unknown state: got exit %d, want 0", got)
+	if got := runLayerlock(t, srv.URL); got != 255 {
+		t.Errorf("unknown state: got exit %d, want 255", got)
 	}
 }
 
 func TestExitCode_Unreachable(t *testing.T) {
 	// Nothing listening on this port.
-	if got := runLayerlock(t, "http://127.0.0.1:19998"); got != 0 {
-		t.Errorf("unreachable: got exit %d, want 0", got)
+	if got := runLayerlock(t, "http://127.0.0.1:19998"); got != 255 {
+		t.Errorf("unreachable: got exit %d, want 255", got)
 	}
 }
 

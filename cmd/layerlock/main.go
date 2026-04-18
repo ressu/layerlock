@@ -23,10 +23,8 @@ func main() {
 	state, err := client.GetState()
 
 	if err != nil {
-		if *verbose {
-			fmt.Fprintf(os.Stderr, "layerlock: warning: %v (failing open)\n", err)
-		}
-		os.Exit(0)
+		fmt.Fprintf(os.Stderr, "layerlock: error: %v (use --fail-open to allow)\n", err)
+		os.Exit(255)
 	}
 
 	switch state {
@@ -40,11 +38,15 @@ func main() {
 			fmt.Fprintf(os.Stderr, "layerlock: printer state: %s — blocking\n", state)
 		}
 		os.Exit(2)
-	default:
+	case moonraker.StateStandby, moonraker.StateComplete:
 		if *verbose {
 			fmt.Fprintf(os.Stderr, "layerlock: printer state: %s — allowing\n", state)
 		}
 		os.Exit(0)
+	default:
+		// Includes StateError and any unknown state returned by Moonraker
+		fmt.Fprintf(os.Stderr, "layerlock: error: unexpected printer state %q (use --fail-open to allow)\n", state)
+		os.Exit(255)
 	}
 }
 
