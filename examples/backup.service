@@ -1,0 +1,18 @@
+# examples/backup.service
+# A systemd service that skips execution while a 3D print is in progress.
+# Install to: /etc/systemd/system/backup.service
+#
+# layerlock exits 1 while printing (systemd treats 1–254 as "skip gracefully").
+# The actual backup runs only when the printer is idle.
+
+[Unit]
+Description=Nightly backup (skips while printing)
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecCondition=/usr/local/bin/layerlock
+ExecStart=/usr/bin/your-backup-script.sh
+
+[Install]
+WantedBy=multi-user.target
