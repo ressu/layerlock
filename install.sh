@@ -52,8 +52,11 @@ curl -fsSL "${BASE_URL}/${CHECKSUM_FILE}" -o "${TMP_DIR}/${CHECKSUM_FILE}"
 cd "$TMP_DIR"
 grep "${BINARY_NAME}" "${CHECKSUM_FILE}" | sha256sum -c -
 
-chmod +x "${BINARY_NAME}"
-mv "${BINARY_NAME}" "${INSTALL_DIR}/layerlock"
+if [ -w "${INSTALL_DIR}" ]; then
+  install -m 755 "${BINARY_NAME}" "${INSTALL_DIR}/layerlock"
+else
+  sudo install -m 755 "${BINARY_NAME}" "${INSTALL_DIR}/layerlock"
+fi
 
 echo "Installed to ${INSTALL_DIR}/layerlock"
 "${INSTALL_DIR}/layerlock" --version 2>/dev/null || true
