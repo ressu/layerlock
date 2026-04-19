@@ -45,15 +45,15 @@ BINARY_NAME="layerlock_linux_${ARCH}"
 CHECKSUM_FILE="layerlock_checksums.txt"
 
 # Download binary and checksum file
-curl -fsSL "${BASE_URL}/${BINARY_NAME}" -o "${TMP_DIR}/layerlock"
+curl -fsSL "${BASE_URL}/${BINARY_NAME}" -o "${TMP_DIR}/${BINARY_NAME}"
 curl -fsSL "${BASE_URL}/${CHECKSUM_FILE}" -o "${TMP_DIR}/${CHECKSUM_FILE}"
 
 # Verify checksum
 cd "$TMP_DIR"
 grep "${BINARY_NAME}" "${CHECKSUM_FILE}" | sha256sum -c -
 
-chmod +x layerlock
-mv layerlock "${INSTALL_DIR}/layerlock"
+chmod +x "${BINARY_NAME}"
+mv "${BINARY_NAME}" "${INSTALL_DIR}/layerlock"
 
 echo "Installed to ${INSTALL_DIR}/layerlock"
 "${INSTALL_DIR}/layerlock" --version 2>/dev/null || true
