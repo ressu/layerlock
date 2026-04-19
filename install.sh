@@ -8,6 +8,7 @@ set -eu
 REPO="ressu/layerlock"
 VERSION="${VERSION:-}"
 INSTALL_DIR="${INSTALL_DIR:-/usr/local/bin}"
+PRERELEASE="${PRERELEASE:-0}"
 TMP_DIR="$(mktemp -d)"
 
 cleanup() { rm -rf "$TMP_DIR"; }
@@ -23,8 +24,18 @@ esac
 
 # Resolve latest version if not specified
 if [ -z "$VERSION" ]; then
-  VERSION="$(curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" \
-    | grep '"tag_name"' | sed 's/.*"tag_name": *"\(.*\)".*/\1/')"
+  if [ "$PRERELEASE" = "1" ]; then
+    VERSION="$(curl -fsSL "https://api.github.com/repos/${REPO}/releases" \
+      | grep '"tag_name"' | head -1 | sed 's/.*"tag_name": *"\(.*\)".*/\1/')"
+  else
+    VERSION="$(curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" \
+      | grep '"tag_name"' | sed 's/.*"tag_name": *"\(.*\)".*/\1/')"
+  fi
+fi
+
+if [ -z "$VERSION" ]; then
+  echo "Could not determine latest version. Use VERSION=vX.Y.Z to specify explicitly." >&2
+  exit 1
 fi
 
 echo "Installing layerlock ${VERSION} (${ARCH})..."

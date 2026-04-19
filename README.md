@@ -34,6 +34,13 @@ Use `--fail-open` to treat errors and unknown states as non-blocking (exit 0) in
 curl -fsSL https://raw.githubusercontent.com/ressu/layerlock/main/install.sh | sh
 ```
 
+This installs the latest stable release. The script accepts two environment variables if you need something different:
+
+| Variable      | Default | Description                              |
+| ------------- | ------- | ---------------------------------------- |
+| `VERSION`     | latest  | Install a specific version, e.g. `v1.0.0-rc1` |
+| `PRERELEASE`  | `0`     | Set to `1` to install the latest prerelease    |
+
 ### Manual
 
 Download the binary for your architecture from [Releases](https://github.com/ressu/layerlock/releases), verify the SHA256 checksum, and place it in `/usr/local/bin/`.
