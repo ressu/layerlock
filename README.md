@@ -89,6 +89,35 @@ run-my-task.sh
 | `--fail-open`      | —               | false                   | Exit 0 on errors and unknown states instead of 255 |
 | `--verbose` / `-v` | —               | false                   | Print status to stderr                             |
 
+## Ansible Usage
+
+Use `pre_tasks` to check printer state before any play runs. `--fail-open` ensures the play proceeds if layerlock isn't installed yet or Moonraker is unreachable.
+
+```yaml
+- name: "3D printers"
+  hosts: printers
+  pre_tasks:
+    - name: Check if layerlock is installed
+      ansible.builtin.stat:
+        path: /usr/local/bin/layerlock
+      register: layerlock_binary
+
+    - name: Check if printer is idle
+      ansible.builtin.command: /usr/local/bin/layerlock --fail-open
+      register: layerlock_result
+      failed_when: false
+      changed_when: false
+      when: layerlock_binary.stat.exists
+
+    - name: Skip host if printer is busy
+      ansible.builtin.meta: end_host
+      when: layerlock_binary.stat.exists and (layerlock_result.rc | default(-1)) in [1, 2]
+  roles:
+    - common
+```
+
+Exit codes 1 (printing) and 2 (paused) both skip the host. Any other result — including errors — allows the play to continue.
+
 ## Building from Source
 
 Requires Go 1.21+.
