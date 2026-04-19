@@ -16,12 +16,15 @@ Two common triggers for exactly that kind of load:
 
 ## How it works
 
-| Printer state              | Exit code | systemd result                  |
-| -------------------------- | --------- | ------------------------------- |
-| printing                   | 1         | unit skipped (`Result=skipped`) |
-| paused                     | 1         | unit skipped                    |
-| standby / complete / error | 0         | unit runs normally              |
-| Moonraker unreachable      | 0         | unit runs normally (fail open)  |
+| Printer state         | Exit code | systemd result                  |
+| --------------------- | --------- | ------------------------------- |
+| printing              | 1         | unit skipped (`Result=skipped`) |
+| paused                | 2         | unit skipped                    |
+| standby / complete    | 0         | unit runs normally              |
+| error / unknown state | 255       | unit fails                      |
+| Moonraker unreachable | 255       | unit fails                      |
+
+Use `--fail-open` to treat errors and unknown states as non-blocking (exit 0) instead.
 
 ## Installation
 
@@ -59,17 +62,25 @@ When the printer is busy, systemd skips the unit cleanly (`Result=skipped`) — 
 ## Shell Script Usage
 
 ```sh
-layerlock || exit 0
+layerlock || exit 1
+run-my-task.sh
+```
+
+To allow the task to run even when Moonraker is unreachable:
+
+```sh
+layerlock --fail-open || exit 1
 run-my-task.sh
 ```
 
 ## Flags and Environment Variables
 
-| Flag               | Env var         | Default                 | Description            |
-| ------------------ | --------------- | ----------------------- | ---------------------- |
-| `--url`            | `MOONRAKER_URL` | `http://localhost:7125` | Moonraker base URL     |
-| `--timeout`        | —               | `5s`                    | HTTP request timeout   |
-| `--verbose` / `-v` | —               | false                   | Print status to stderr |
+| Flag               | Env var         | Default                 | Description                                        |
+| ------------------ | --------------- | ----------------------- | -------------------------------------------------- |
+| `--url`            | `MOONRAKER_URL` | `http://localhost:7125` | Moonraker base URL                                 |
+| `--timeout`        | —               | `5s`                    | HTTP request timeout                               |
+| `--fail-open`      | —               | false                   | Exit 0 on errors and unknown states instead of 255 |
+| `--verbose` / `-v` | —               | false                   | Print status to stderr                             |
 
 ## Building from Source
 
