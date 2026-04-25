@@ -1,14 +1,17 @@
 #!/usr/bin/env sh
 # install.sh — Download, verify, and install layerlock
-# Usage: sh install.sh [VERSION] [INSTALL_DIR]
-#   VERSION     defaults to latest GitHub release
-#   INSTALL_DIR defaults to /usr/local/bin
+# Usage: sh install.sh
+#   VERSION        env var, defaults to latest GitHub release
+#   INSTALL_DIR    env var, defaults to /usr/local/bin
+#   BINARY_SHA256  env var, optional SHA-256 to verify the binary (skips downloading checksums file)
+#                  accepts "sha256:<hex>" (GitHub UI format) or bare "<hex>"
 set -eu
 
 REPO="ressu/layerlock"
 VERSION="${VERSION:-}"
 INSTALL_DIR="${INSTALL_DIR:-/usr/local/bin}"
 PRERELEASE="${PRERELEASE:-0}"
+BINARY_SHA256="${BINARY_SHA256:-}"
 TMP_DIR="$(mktemp -d)"
 
 cleanup() { rm -rf "$TMP_DIR"; }
@@ -44,13 +47,25 @@ BASE_URL="https://github.com/${REPO}/releases/download/${VERSION}"
 BINARY_NAME="layerlock_linux_${ARCH}"
 CHECKSUM_FILE="layerlock_checksums.txt"
 
-# Download binary and checksum file
+# Download binary
 curl -fsSL "${BASE_URL}/${BINARY_NAME}" -o "${TMP_DIR}/${BINARY_NAME}"
-curl -fsSL "${BASE_URL}/${CHECKSUM_FILE}" -o "${TMP_DIR}/${CHECKSUM_FILE}"
 
 # Verify checksum
 cd "$TMP_DIR"
-grep "${BINARY_NAME}" "${CHECKSUM_FILE}" | sha256sum -c -
+if [ -n "$BINARY_SHA256" ]; then
+  # Strip optional "sha256:" prefix (as shown in GitHub UI)
+  EXPECTED_HASH="${BINARY_SHA256#sha256:}"
+  COMPUTED_HASH="$(sha256sum "${BINARY_NAME}" | awk '{print $1}')"
+  if [ "$COMPUTED_HASH" != "$EXPECTED_HASH" ]; then
+    echo "Checksum mismatch for ${BINARY_NAME}" >&2
+    echo "  expected: ${EXPECTED_HASH}" >&2
+    echo "  computed: ${COMPUTED_HASH}" >&2
+    exit 1
+  fi
+else
+  curl -fsSL "${BASE_URL}/${CHECKSUM_FILE}" -o "${TMP_DIR}/${CHECKSUM_FILE}"
+  grep "${BINARY_NAME}" "${CHECKSUM_FILE}" | sha256sum -c -
+fi
 
 if [ -w "${INSTALL_DIR}" ]; then
   install -m 755 "${BINARY_NAME}" "${INSTALL_DIR}/layerlock"

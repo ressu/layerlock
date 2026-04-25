@@ -34,12 +34,28 @@ Use `--fail-open` to treat errors and unknown states as non-blocking (exit 0) in
 curl -fsSL https://raw.githubusercontent.com/ressu/layerlock/main/install.sh | sh
 ```
 
-This installs the latest stable release. The script accepts two environment variables if you need something different:
+This installs the latest stable release. The script accepts environment variables if you need something different:
 
-| Variable      | Default | Description                              |
-| ------------- | ------- | ---------------------------------------- |
-| `VERSION`     | latest  | Install a specific version, e.g. `v1.0.0-rc1` |
-| `PRERELEASE`  | `0`     | Set to `1` to install the latest prerelease    |
+| Variable        | Default | Description                                         |
+| --------------- | ------- | --------------------------------------------------- |
+| `VERSION`       | latest  | Install a specific version, e.g. `v1.0.0-rc1`      |
+| `PRERELEASE`    | `0`     | Set to `1` to install the latest prerelease         |
+| `BINARY_SHA256` | —       | SHA-256 of the binary to verify before installing   |
+
+<details>
+<summary>Verifying without piping to sh</summary>
+
+If you prefer not to pipe directly to `sh`, download the script first, inspect it, then run it with a checksum you've verified independently from the [Releases](https://github.com/ressu/layerlock/releases) page:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/ressu/layerlock/main/install.sh -o install.sh
+# inspect install.sh, then:
+BINARY_SHA256="sha256:2fba8d8e86eef0be2bf747f0037dc9a1e025de4ef3ee722f8e9fe3d1b092f6a1" sh install.sh
+```
+
+Both the `sha256:<hex>` format shown in the GitHub UI and the bare `<hex>` format from `layerlock_checksums.txt` are accepted. When `BINARY_SHA256` is set the checksums file is not downloaded.
+
+</details>
 
 ### Manual
 
