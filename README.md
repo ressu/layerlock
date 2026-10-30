@@ -1,75 +1,83 @@
 # layerlock
 
-Block systemd units and shell scripts from running while your 3D printer is busy.
+Stop systemd units and shell scripts from running while your 3D printer is busy.
 
-`layerlock` queries the [Moonraker](https://github.com/Arksine/moonraker) API and exits with a code that tells systemd whether to proceed or skip.
+`layerlock` asks [Moonraker](https://github.com/Arksine/moonraker) for the printer's state. Its exit code tells systemd or your script whether to go ahead or skip.
 
 ## Why this exists
 
-[Klipper](https://github.com/Klipper3d/klipper) is sensitive to processing delays. If the host system is under load while a print is running — enough to delay gcode reads — the print can fail mid-job.
+[Klipper](https://github.com/Klipper3d/klipper) is sensitive to delays on the computer it runs on. If that computer gets busy enough to slow down how Klipper reads the G-code, the print can fail partway through.
 
-Two common triggers for exactly that kind of load:
+Two common jobs cause exactly that kind of load:
 
-**Backups.** A backup job saturating disk or network IO can spike latency enough to disrupt Klipper's timing. With `layerlock` as an `ExecCondition=`, the backup simply skips itself and tries again next scheduled run.
+**Backups.** A backup can keep the disk or network busy long enough to disrupt Klipper's timing. With `layerlock` as an `ExecCondition=`, the backup skips itself while the printer is busy. It tries again at its next scheduled run.
 
-**Automatic updates.** Updating services like Moonraker or system packages while printing can restart processes that communicate with the printer, dropping the connection and aborting the job. Gating update units behind `layerlock` prevents this without disabling updates entirely.
+**Automatic updates.** An update of Moonraker or of system packages can restart the services that talk to the printer. That drops the connection and stops the print. With `layerlock` in front of your update units, updates wait for an idle printer, and you don't have to turn them off.
 
 ## How it works
 
-| Printer state         | Exit code | systemd result                  |
-| --------------------- | --------- | ------------------------------- |
-| printing              | 1         | unit skipped (`Result=skipped`) |
-| paused                | 2         | unit skipped                    |
-| standby / complete    | 0         | unit runs normally              |
-| error / unknown state | 255       | unit fails                      |
-| Moonraker unreachable | 255       | unit fails                      |
+| Printer state                            | Exit code | systemd result                  |
+| ---------------------------------------- | --------- | ------------------------------- |
+| printing                                 | 1         | unit skipped (`Result=skipped`) |
+| paused                                   | 2         | unit skipped                    |
+| standby or complete                      | 0         | unit runs                       |
+| error, or a state layerlock doesn't know | 255       | unit fails                      |
+| Moonraker can't be reached               | 255       | unit fails                      |
 
-Use `--fail-open` to treat errors and unknown states as non-blocking (exit 0) instead.
+A unit fails on errors so that you notice a wrong URL or a stopped Moonraker. If your printer is sometimes off on purpose, use `--fail-open`: errors and unknown states then exit 0, and the unit runs.
 
 ## Installation
 
-### One-liner (verified checksum)
+### One-line install (verifies the checksum)
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/ressu/layerlock/main/install.sh | sh
 ```
 
-This installs the latest stable release. The script accepts environment variables if you need something different:
+This installs the latest release. To change what it installs, set these environment variables:
 
-| Variable        | Default | Description                                         |
-| --------------- | ------- | --------------------------------------------------- |
-| `VERSION`       | latest  | Install a specific version, e.g. `v1.0.0-rc1`      |
-| `PRERELEASE`    | `0`     | Set to `1` to install the latest prerelease         |
-| `BINARY_SHA256` | —       | SHA-256 of the binary to verify before installing   |
+| Variable        | Default          | Description                                       |
+| --------------- | ---------------- | ------------------------------------------------- |
+| `VERSION`       | latest release   | Version to install, for example `v1.0.0`          |
+| `PRERELEASE`    | `0`              | Set to `1` to install the latest pre-release      |
+| `INSTALL_DIR`   | `/usr/local/bin` | Folder to install `layerlock` into                |
+| `BINARY_SHA256` | none             | SHA-256 checksum the downloaded binary must match |
+
+Put the variables in front of `sh`:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/ressu/layerlock/main/install.sh | VERSION=v1.0.0 sh
+```
 
 <details>
-<summary>Verifying without piping to sh</summary>
+<summary>Install without piping to sh</summary>
 
-If you prefer not to pipe directly to `sh`, download the script first, inspect it, then run it with a checksum you've verified independently from the [Releases](https://github.com/ressu/layerlock/releases) page:
+You can download the script and read it before you run it. To be sure you install the right binary, copy its checksum from the [Releases](https://github.com/ressu/layerlock/releases) page:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/ressu/layerlock/main/install.sh -o install.sh
-# inspect install.sh, then:
-BINARY_SHA256="sha256:2fba8d8e86eef0be2bf747f0037dc9a1e025de4ef3ee722f8e9fe3d1b092f6a1" sh install.sh
+less install.sh
+BINARY_SHA256="<checksum>" sh install.sh
 ```
 
-Both the `sha256:<hex>` format shown in the GitHub UI and the bare `<hex>` format from `layerlock-checksums.txt` are accepted. When `BINARY_SHA256` is set the checksums file is not downloaded.
+Replace `<checksum>` with the binary's SHA-256 checksum. The script accepts both the `sha256:<hex>` form from the GitHub page and the plain `<hex>` form from `layerlock-checksums.txt`. With `BINARY_SHA256` set, the script doesn't download the checksums file.
 
 </details>
 
-### Manual
+### Manual install
 
-Download the binary for your architecture from [Releases](https://github.com/ressu/layerlock/releases), verify the SHA256 checksum, and place it in `/usr/local/bin/`. The binaries are static and have no runtime dependencies.
+Download the binary for your computer from [Releases](https://github.com/ressu/layerlock/releases), check its SHA-256 checksum, and put it in `/usr/local/bin/`. Each binary is a single file that doesn't need any other software.
 
-| Architecture                       | Asset                     |
-| ---------------------------------- | ------------------------- |
-| 64-bit ARM (Pi 3/4/5, 64-bit OS)   | `layerlock-linux-aarch64` |
-| 32-bit ARMv7 (Pi 2/3/4, 32-bit OS) | `layerlock-linux-armv7`   |
-| ARMv6 (Pi Zero, Pi Zero W, Pi 1)   | `layerlock-linux-armv6`   |
-| x86_64                             | `layerlock-linux-x86_64`  |
+| Computer                                      | Binary                    |
+| --------------------------------------------- | ------------------------- |
+| 64-bit ARM (Pi 3, 4, or 5 with a 64-bit OS)   | `layerlock-linux-aarch64` |
+| 32-bit ARMv7 (Pi 2, 3, or 4 with a 32-bit OS) | `layerlock-linux-armv7`   |
+| ARMv6 (Pi Zero, Pi Zero W, or Pi 1)           | `layerlock-linux-armv6`   |
+| x86_64 (most PCs)                             | `layerlock-linux-x86_64`  |
+
+For example, on a Pi with a 64-bit OS:
 
 ```sh
-# Example for 64-bit ARM
 curl -LO https://github.com/ressu/layerlock/releases/latest/download/layerlock-linux-aarch64
 curl -LO https://github.com/ressu/layerlock/releases/latest/download/layerlock-checksums.txt
 grep layerlock-linux-aarch64 layerlock-checksums.txt | sha256sum -c
@@ -77,11 +85,11 @@ chmod +x layerlock-linux-aarch64
 sudo mv layerlock-linux-aarch64 /usr/local/bin/layerlock
 ```
 
-Releases up to v1.0.0 used different names: `layerlock_linux_arm64`, `layerlock_linux_armv7`, `layerlock_linux_amd64` and `layerlock_checksums.txt`.
+Releases up to v1.0.0 use other file names: `layerlock_linux_arm64`, `layerlock_linux_armv7`, `layerlock_linux_amd64`, and `layerlock_checksums.txt`.
 
-## systemd Usage
+## systemd usage
 
-Add `ExecCondition=` to any `.service` unit:
+Add `ExecCondition=` to the `[Service]` section of any unit:
 
 ```ini
 [Service]
@@ -89,38 +97,40 @@ ExecCondition=/usr/local/bin/layerlock
 ExecStart=/usr/bin/your-task
 ```
 
-When the printer is busy, systemd skips the unit cleanly (`Result=skipped`) — no failure, no cascade, no noise. See `examples/backup.service` for a complete example.
+While the printer is busy, systemd skips the unit (`Result=skipped`) instead of failing it. For a complete unit, see [examples/backup.service](examples/backup.service).
 
-## Shell Script Usage
+## Shell script usage
+
+`layerlock` exits with a non-zero code while the printer is busy, so this script stops before the task:
 
 ```sh
 layerlock || exit 1
 run-my-task.sh
 ```
 
-To allow the task to run even when Moonraker is unreachable:
+To run the task even when Moonraker can't be reached:
 
 ```sh
 layerlock --fail-open || exit 1
 run-my-task.sh
 ```
 
-## Flags and Environment Variables
+## Flags and environment variables
 
-| Flag               | Env var         | Default                 | Description                                        |
-| ------------------ | --------------- | ----------------------- | -------------------------------------------------- |
-| `--url`            | `MOONRAKER_URL` | `http://localhost:7125` | Moonraker base URL                                 |
-| `--timeout`        | —               | `5s`                    | HTTP request timeout                               |
-| `--fail-open`      | —               | false                   | Exit 0 on errors and unknown states instead of 255 |
-| `--verbose` / `-v` | —               | false                   | Print status to stderr                             |
-| `--help` / `-h`    | —               |                         | Show usage                                         |
-| `--version`        | —               |                         | Show the version                                   |
+| Flag               | Environment variable | Default                 | Description                                        |
+| ------------------ | -------------------- | ----------------------- | -------------------------------------------------- |
+| `--url`            | `MOONRAKER_URL`      | `http://localhost:7125` | Moonraker's address                                |
+| `--timeout`        | none                 | `5s`                    | How long to wait for Moonraker                     |
+| `--fail-open`      | none                 | off                     | Exit 0 instead of 255 on errors and unknown states |
+| `--verbose` / `-v` | none                 | off                     | Write the printer state to stderr                  |
+| `--help` / `-h`    | none                 |                         | Show the flags                                     |
+| `--version`        | none                 |                         | Show the version                                   |
 
-`--timeout` takes a duration such as `500ms`, `5s` or `1m30s`. Flags can also be written with one dash (`-url`) or with `=` (`--url=http://...`). An unknown flag or bad value is an error: layerlock exits 255.
+`--timeout` takes a duration such as `500ms`, `5s`, or `1m30s`. You can also write a flag with one dash (`-url`) or give its value after `=` (`--url=http://printer.local:7125`). An unknown flag or a wrong value is an error, and `layerlock` exits 255.
 
-## Ansible Usage
+## Ansible usage
 
-Use `pre_tasks` to check printer state before any play runs. `--fail-open` ensures the play proceeds if layerlock isn't installed yet or Moonraker is unreachable.
+To check the printer before a play runs, use `pre_tasks`. The play skips each host whose printer is printing or paused:
 
 ```yaml
 - name: "3D printers"
@@ -145,11 +155,11 @@ Use `pre_tasks` to check printer state before any play runs. `--fail-open` ensur
     - common
 ```
 
-Exit codes 1 (printing) and 2 (paused) both skip the host. Any other result — including errors — allows the play to continue.
+Every other result lets the play continue. That includes a host where `layerlock` isn't installed yet, and, with `--fail-open`, a host where Moonraker can't be reached.
 
-## Building from Source
+## Building from source
 
-Requires Rust (the version in `rust-toolchain.toml`; `rustup` picks it up automatically). With Nix, `nix develop` gives you the toolchain with all release targets.
+You need the Rust version in `rust-toolchain.toml`; `rustup` installs it for you. With Nix, `nix develop` gives you that version with all release targets.
 
 ```sh
 git clone https://github.com/ressu/layerlock
@@ -157,9 +167,11 @@ cd layerlock
 cargo build --release
 ```
 
-Cross-compile for Raspberry Pi (64-bit). This needs no C cross toolchain: the release targets link with Rust's own linker and musl (see `.cargo/config.toml`).
+To build for a Pi with a 64-bit OS, use the musl target. Rust's own linker builds it, so you don't need a C cross toolchain (see `.cargo/config.toml`).
 
 ```sh
-rustup target add aarch64-unknown-linux-musl   # not needed in `nix develop`
+rustup target add aarch64-unknown-linux-musl
 cargo build --release --target aarch64-unknown-linux-musl
 ```
+
+In `nix develop`, skip the `rustup` line: the target is already installed.
