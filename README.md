@@ -53,22 +53,31 @@ curl -fsSL https://raw.githubusercontent.com/ressu/layerlock/main/install.sh -o 
 BINARY_SHA256="sha256:2fba8d8e86eef0be2bf747f0037dc9a1e025de4ef3ee722f8e9fe3d1b092f6a1" sh install.sh
 ```
 
-Both the `sha256:<hex>` format shown in the GitHub UI and the bare `<hex>` format from `layerlock_checksums.txt` are accepted. When `BINARY_SHA256` is set the checksums file is not downloaded.
+Both the `sha256:<hex>` format shown in the GitHub UI and the bare `<hex>` format from `layerlock-checksums.txt` are accepted. When `BINARY_SHA256` is set the checksums file is not downloaded.
 
 </details>
 
 ### Manual
 
-Download the binary for your architecture from [Releases](https://github.com/ressu/layerlock/releases), verify the SHA256 checksum, and place it in `/usr/local/bin/`.
+Download the binary for your architecture from [Releases](https://github.com/ressu/layerlock/releases), verify the SHA256 checksum, and place it in `/usr/local/bin/`. The binaries are static and have no runtime dependencies.
+
+| Architecture                       | Asset                     |
+| ---------------------------------- | ------------------------- |
+| 64-bit ARM (Pi 3/4/5, 64-bit OS)   | `layerlock-linux-aarch64` |
+| 32-bit ARMv7 (Pi 2/3/4, 32-bit OS) | `layerlock-linux-armv7`   |
+| ARMv6 (Pi Zero, Pi Zero W, Pi 1)   | `layerlock-linux-armv6`   |
+| x86_64                             | `layerlock-linux-x86_64`  |
 
 ```sh
-# Example for arm64
-curl -LO https://github.com/ressu/layerlock/releases/latest/download/layerlock_linux_arm64
-curl -LO https://github.com/ressu/layerlock/releases/latest/download/layerlock_checksums.txt
-grep layerlock_linux_arm64 layerlock_checksums.txt | sha256sum -c
-chmod +x layerlock_linux_arm64
-sudo mv layerlock_linux_arm64 /usr/local/bin/layerlock
+# Example for 64-bit ARM
+curl -LO https://github.com/ressu/layerlock/releases/latest/download/layerlock-linux-aarch64
+curl -LO https://github.com/ressu/layerlock/releases/latest/download/layerlock-checksums.txt
+grep layerlock-linux-aarch64 layerlock-checksums.txt | sha256sum -c
+chmod +x layerlock-linux-aarch64
+sudo mv layerlock-linux-aarch64 /usr/local/bin/layerlock
 ```
+
+Releases up to v1.0.0 used different names: `layerlock_linux_arm64`, `layerlock_linux_armv7`, `layerlock_linux_amd64` and `layerlock_checksums.txt`.
 
 ## systemd Usage
 
@@ -104,6 +113,10 @@ run-my-task.sh
 | `--timeout`        | —               | `5s`                    | HTTP request timeout                               |
 | `--fail-open`      | —               | false                   | Exit 0 on errors and unknown states instead of 255 |
 | `--verbose` / `-v` | —               | false                   | Print status to stderr                             |
+| `--help` / `-h`    | —               |                         | Show usage                                         |
+| `--version`        | —               |                         | Show the version                                   |
+
+`--timeout` takes a duration such as `500ms`, `5s` or `1m30s`. Flags can also be written with one dash (`-url`) or with `=` (`--url=http://...`). An unknown flag or bad value is an error: layerlock exits 255.
 
 ## Ansible Usage
 
@@ -136,16 +149,17 @@ Exit codes 1 (printing) and 2 (paused) both skip the host. Any other result — 
 
 ## Building from Source
 
-Requires Go 1.21+.
+Requires Rust (the version in `rust-toolchain.toml`; `rustup` picks it up automatically). With Nix, `nix develop` gives you the toolchain with all release targets.
 
 ```sh
 git clone https://github.com/ressu/layerlock
 cd layerlock
-go build ./cmd/layerlock/
+cargo build --release
 ```
 
-Cross-compile for Raspberry Pi (arm64):
+Cross-compile for Raspberry Pi (64-bit). This needs no C cross toolchain: the release targets link with Rust's own linker and musl (see `.cargo/config.toml`).
 
 ```sh
-GOOS=linux GOARCH=arm64 go build -o layerlock-arm64 ./cmd/layerlock/
+rustup target add aarch64-unknown-linux-musl   # not needed in `nix develop`
+cargo build --release --target aarch64-unknown-linux-musl
 ```

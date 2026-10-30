@@ -17,11 +17,13 @@ TMP_DIR="$(mktemp -d)"
 cleanup() { rm -rf "$TMP_DIR"; }
 trap cleanup EXIT
 
-# Detect architecture
+# Detect architecture. LEGACY_ARCH is the asset name used by releases up to v1.0.0 (built with Go),
+# which had no armv6 build.
 case "$(uname -m)" in
-  x86_64)             ARCH="amd64"  ;;
-  aarch64|arm64)      ARCH="arm64"  ;;
-  armv7*|armv6*)      ARCH="armv7"  ;;
+  x86_64)             ARCH="x86_64";  LEGACY_ARCH="amd64" ;;
+  aarch64|arm64)      ARCH="aarch64"; LEGACY_ARCH="arm64" ;;
+  armv7*|armv8l)      ARCH="armv7";   LEGACY_ARCH="armv7" ;;
+  armv6*)             ARCH="armv6";   LEGACY_ARCH="" ;;
   *) echo "Unsupported architecture: $(uname -m)" >&2; exit 1 ;;
 esac
 
@@ -44,11 +46,19 @@ fi
 echo "Installing layerlock ${VERSION} (${ARCH})..."
 
 BASE_URL="https://github.com/${REPO}/releases/download/${VERSION}"
-BINARY_NAME="layerlock_linux_${ARCH}"
-CHECKSUM_FILE="layerlock_checksums.txt"
+BINARY_NAME="layerlock-linux-${ARCH}"
+CHECKSUM_FILE="layerlock-checksums.txt"
 
-# Download binary
-curl -fsSL "${BASE_URL}/${BINARY_NAME}" -o "${TMP_DIR}/${BINARY_NAME}"
+# Download binary, falling back to the asset names of older releases
+if ! curl -fsSL "${BASE_URL}/${BINARY_NAME}" -o "${TMP_DIR}/${BINARY_NAME}" 2>/dev/null; then
+  if [ -z "$LEGACY_ARCH" ]; then
+    echo "No $(uname -m) build in layerlock ${VERSION}." >&2
+    exit 1
+  fi
+  BINARY_NAME="layerlock_linux_${LEGACY_ARCH}"
+  CHECKSUM_FILE="layerlock_checksums.txt"
+  curl -fsSL "${BASE_URL}/${BINARY_NAME}" -o "${TMP_DIR}/${BINARY_NAME}"
+fi
 
 # Verify checksum
 cd "$TMP_DIR"
@@ -64,7 +74,7 @@ if [ -n "$BINARY_SHA256" ]; then
   fi
 else
   curl -fsSL "${BASE_URL}/${CHECKSUM_FILE}" -o "${TMP_DIR}/${CHECKSUM_FILE}"
-  grep "${BINARY_NAME}" "${CHECKSUM_FILE}" | sha256sum -c -
+  grep " ${BINARY_NAME}\$" "${CHECKSUM_FILE}" | sha256sum -c -
 fi
 
 if [ -w "${INSTALL_DIR}" ]; then

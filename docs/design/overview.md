@@ -19,20 +19,22 @@ the printer is busy.
 A thin CLI wrapper around an internal Moonraker HTTP client:
 
 ```
-cmd/layerlock/main.go          flag parsing, state → exit-code mapping
-internal/moonraker/client.go   HTTP GET, JSON decode, typed State return
+src/main.rs        flag parsing, state → exit-code mapping
+src/moonraker.rs   HTTP GET, JSON decode, typed State return
 ```
 
-No global state, no concurrency, no framework dependencies — stdlib HTTP and `os.Exit`.
+No global state, no concurrency, no framework — a small blocking HTTP client (`ureq`) and `exit()`.
 
 ## Key Design Decisions
 
-### Language: Go
+### Language: Rust
 
-- Single static binary, zero runtime dependencies
-- Fast startup (5–20ms vs Python's 50–150ms+) — important for the condition check path
-- Trivial cross-compilation for ARM/ARM64 (Raspberry Pi target audience)
-- HTTP client is stdlib — no external dependencies needed
+Originally Go; ported to Rust in October 2026 (see [2026-10-30-rust-port.md](2026-10-30-rust-port.md)).
+
+- Single static binary (musl), zero runtime dependencies, ~700 KB
+- A check takes about a millisecond (Go: about 3 ms) — important for the condition check path
+- Cross-compiles for all Pi targets with Rust's own linker and musl, no C cross toolchain
+- Same build setup as printerkeep
 
 ### systemd Integration: `ExecCondition=`
 
@@ -88,11 +90,11 @@ A future `--on-error` flag will make this configurable (see [extended-modes.md](
 - Installer shell script: detects arch, downloads binary, **verifies checksum**, installs
 - This is a deliberate improvement over the `wget | sh` pattern common in the
   Klipper community — the script is auditable and only the verified binary is executed
-- **GoReleaser** handles cross-compilation and release automation
-  - Targets: `linux/amd64`, `linux/arm64`, `linux/armv7`
+- A GitHub Actions matrix (`.github/workflows/release.yml`) builds, smoke-tests (under qemu) and publishes
+  - Targets: `aarch64`, `armv7`, `armv6`, `x86_64` (all `linux-musl`)
 
 ## Target Platform
 
-- Raspberry Pi (primary): ARM64 (Pi 4/5), ARMv7 (Pi 2/3 32-bit)
+- Raspberry Pi (primary): ARM64 (Pi 3/4/5), ARMv7 (Pi 2/3/4 32-bit), ARMv6 (Pi Zero, Pi 1)
 - Linux x86_64 (secondary, for testing and non-Pi setups)
 - Moonraker assumed to be running on `localhost:7125` by default (configurable via `--url` / `MOONRAKER_URL`)

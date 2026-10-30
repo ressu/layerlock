@@ -1,32 +1,96 @@
 name: Release
 
+# A tag "v<version>" builds and publishes a release. A tag with a pre-release part (for example v1.1.0-rc1)
+# publishes a pre-release. "Run workflow" builds and tests the binaries without a release.
 on:
   push:
-    tags:
-      - "v*"
+    tags: ["v*"]
+  workflow_dispatch:
 
 permissions:
-  contents: write  # needed to create GitHub Releases
+  contents: write # create GitHub Releases
 
 jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - target: aarch64-unknown-linux-musl
+            asset: layerlock-linux-aarch64
+            run: qemu-aarch64
+          - target: armv7-unknown-linux-musleabihf
+            asset: layerlock-linux-armv7
+            run: qemu-arm
+          - target: arm-unknown-linux-musleabihf
+            asset: layerlock-linux-armv6
+            run: qemu-arm -cpu arm1176 # Raspberry Pi Zero W CPU
+          - target: x86_64-unknown-linux-musl
+            asset: layerlock-linux-x86_64
+            run: ""
+    steps:
+      - uses: actions/checkout@v7
+
+      # install.sh prints `layerlock --version`, which comes from Cargo.toml.
+      - name: Tag matches the version
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          version=$(sed -n 's/^version = "\(.*\)"$/\1/p' Cargo.toml | head -n 1)
+          if [ "$TAG" != "v$version" ]; then
+            echo "The tag $TAG is not v$version (the version in Cargo.toml)." >&2
+            exit 1
+          fi
+
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          target: ${{ matrix.target }}
+
+      - name: Install qemu
+        run: sudo apt-get update && sudo apt-get install -y qemu-user
+
+      - name: Test
+        run: cargo test
+
+      - name: Build
+        # Links with rust-lld (.cargo/config.toml): no C cross toolchain.
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Smoke test
+        run: |
+          cp target/${{ matrix.target }}/release/layerlock ${{ matrix.asset }}
+          ${{ matrix.run }} ./${{ matrix.asset }} --version
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.asset }}
+          path: ${{ matrix.asset }}
+          if-no-files-found: error
+
   release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # GoReleaser needs full git history for changelog
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-go@v5
+      - uses: actions/download-artifact@v8
         with:
-          go-version-file: go.mod
-          cache: true
+          path: dist
+          merge-multiple: true
 
-      - name: Run tests
-        run: go test ./...
+      - name: Checksums
+        working-directory: dist
+        run: sha256sum layerlock-linux-* > layerlock-checksums.txt
 
-      - uses: goreleaser/goreleaser-action@v6
-        with:
-          version: latest
-          args: release --clean
+      - name: Publish
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          prerelease=""
+          case "$TAG" in *-*) prerelease="--prerelease" ;; esac
+          cp install.sh dist/
+          gh release create "$TAG" dist/* --repo "${{ github.repository }}" --title "$TAG" \
+            --generate-notes $prerelease

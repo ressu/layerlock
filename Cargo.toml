@@ -1,0 +1,21 @@
+[package]
+name = "layerlock"
+version = "1.0.0"
+edition = "2024"
+description = "Blocks systemd units and shell scripts from running while a 3D printer is busy"
+license = "MIT"
+repository = "https://github.com/ressu/layerlock"
+readme = "README.md"
+keywords = ["klipper", "moonraker", "3d-printing", "systemd"]
+categories = ["command-line-utilities"]
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+ureq = { version = "3", default-features = false, features = ["json"] }
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

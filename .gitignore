@@ -1,5 +1,9 @@
+/target
+/result
+/dist
+/.direnv
 .worktrees/
-dist/
-layerlock
-layerlock-*
-layerlock_linux_*
+# Local builds copied to the repository root
+/layerlock
+/layerlock-*
+/layerlock_linux_*
