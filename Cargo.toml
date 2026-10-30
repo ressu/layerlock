@@ -1,6 +1,6 @@
 [package]
 name = "layerlock"
-version = "1.0.0"
+version = "1.1.0"
 edition = "2024"
 description = "Blocks systemd units and shell scripts from running while a 3D printer is busy"
 license = "MIT"
