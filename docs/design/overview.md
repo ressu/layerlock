@@ -70,18 +70,23 @@ Known states: `standby`, `printing`, `paused`, `error`, `complete`
 | State | Exit code | Rationale |
 |-------|-----------|-----------|
 | `printing` | 1 | block |
-| `paused` | 1 | block — print is not done |
+| `paused` | 2 | block — print is not done; distinct code so scripts can tell it apart |
 | `standby` | 0 | allow |
 | `complete` | 0 | allow |
-| `error` | 0 | allow (fail open) |
-| unknown state | 0 | allow (fail open) |
-| unreachable | 0 | allow (fail open) |
+| `error` | 255 | fail |
+| unknown state | 255 | fail |
+| unreachable, HTTP or decode error | 255 | fail |
+| usage error (unknown flag, bad value) | 255 | fail |
 
-### Fail-Open Policy
+Details and rationale: [2026-04-18-exit-codes-and-fail-open.md](2026-04-18-exit-codes-and-fail-open.md).
 
-When Moonraker is unreachable, the binary exits 0 (allow). This is a deliberate
-choice — the printer being off or unreachable should not block maintenance tasks.
-A future `--on-error` flag will make this configurable (see [extended-modes.md](extended-modes.md)).
+### Fail-Closed by Default
+
+Errors and unknown states exit 255, which fails an `ExecCondition=` unit instead of
+skipping it. A wrong `--url` or a Moonraker that never started should not look like an
+idle printer. Setups where the printer is sometimes off by design opt in with
+`--fail-open`, which turns every 255 into 0. Errors always go to stderr, and with
+`--fail-open` they still log a warning, so a misconfiguration is never silent.
 
 ### Distribution
 

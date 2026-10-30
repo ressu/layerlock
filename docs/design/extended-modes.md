@@ -23,12 +23,10 @@ Allows dependents to be started/stopped reactively via `BindsTo=` or `PartOf=`.
 
 ## Open Design Questions
 
-- **`paused` state:** Currently blocks (exit 1). Should this be configurable?
-  A paused print is not done but the machine is idle — some tasks may be safe to run.
-
-- **Fail-open vs fail-closed:** Currently unreachable Moonraker → exit 0 (allow).
-  A `--on-error allow|block` flag would let users choose. `block` is the safer default
-  for setups where the printer is always on.
+- **`paused` state:** Blocks with its own exit code (2), so a script can already treat it
+  differently. Should a flag make it allow (exit 0) for `ExecCondition=` units, which can't
+  branch on the code? A paused print is not done but the machine is idle — some tasks may be
+  safe to run.
 
 - **Package manager distribution:** AUR, apt PPA — out of scope for now but worth
   pursuing as the project matures.
