@@ -38,6 +38,7 @@
               pkgs.jujutsu
               pkgs.qemu # run ARM release binaries locally
               pkgs.shellcheck # install.sh and scripts/
+              pkgs.git-cliff # drafts the release notes in CHANGELOG.md
             ];
           };
         });

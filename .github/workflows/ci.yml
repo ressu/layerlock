@@ -25,4 +25,4 @@ jobs:
 
       # shellcheck is installed on the GitHub runners.
       - name: Shell scripts
-        run: shellcheck install.sh
+        run: shellcheck install.sh scripts/*.sh
